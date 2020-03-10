@@ -15,6 +15,7 @@ class VGG16:
         require_grad_false(self.enc1)
         require_grad_false(self.enc2)
         require_grad_false(self.enc3)
+
     def __call__(self, in_img):
         out1 = self.enc1(in_img)
         out2 = self.enc2(out1)
@@ -24,13 +25,21 @@ class VGG16:
 
 class Loss(torch.nn.Module):
     def __init__(self, extractor):
+        super().__init__()
         self.extractor = extractor
         self.l1 = torch.nn.L1Loss()
         self.loss_valid = None
         self.loss_hole = None
         self.loss_perceptual = None
         self.loss_style = None
-        self.total_variation = None
+        self.loss_total_variation = None
+
+        # weight for loss
+        self.loss_valid_weight = 1
+        self.loss_hole_weight = 6
+        self.loss_perceptual_weight = 0.05
+        self.loss_style_weight = 120
+        self.loss_total_variation_weight = 0.1
 
     def forward(self, in_img,in_mask,out_img,gt):
         # mask 1 valid , 0 hole
@@ -43,7 +52,13 @@ class Loss(torch.nn.Module):
         feature_gt = self.extractor(gt)
         self.loss_perceptual = self.perceptual_loss(feature_out, feature_comp, feature_gt)
         self.loss_style = self.style_loss(feature_out,feature_comp,feature_gt)
-        # self.total_variation =
+        self.loss_total_variation = self.total_variation(i_comp, in_mask)
+        # total loss
+        return self.loss_valid * self.loss_valid_weight \
+               + self.loss_hole * self.loss_hole_weight \
+               + self.loss_perceptual * self.loss_perceptual_weight \
+               + self.loss_style * self.loss_style_weight \
+               + self.loss_total_variation * self.loss_total_variation_weight
 
 
     def perceptual_loss(self,out, comp, gt):
@@ -57,6 +72,7 @@ class Loss(torch.nn.Module):
         style_out = 0
         style_comp = 0
         for i in range(len(out)):
+            # B C H W
             cc = out[i].shape[1] ** 2
             gram_out = self.gram_matrix(out[i])
             gram_gt = self.gram_matrix(gt[i])
@@ -70,19 +86,49 @@ class Loss(torch.nn.Module):
     def gram_matrix(self,y):
         (b, ch, h, w) = y.size()
         features = y.view(b, ch, w * h)
-        features_t = features.transpose(1, 2)
+        features_t = features.transpose(1, 2).sum()
         gram = features.bmm(features_t) / (ch * h * w)
         return gram
-    # def total_variation(self, img):
+    def dilation(self, i_comp, mask):
+        b,c,h,w = i_comp.size()
+        mb,mc,mh,mw = mask.size()
+
+        # mask 1 valid , 0 hole
+        kernel = torch.ones(mc,c,3,3)
+        dilated_mask =  torch.nn.functional.conv2d(1-mask,kernel,padding=1)
+        dilated_mask = torch.clamp(dilated_mask, 0, 1)
+        return dilated_mask
+
+
+    def total_variation(self, i_comp, mask):
+        dilated_mask = self.dilation(i_comp, mask)
+        i_comp = i_comp * dilated_mask
+        return self.l1(i_comp[:,:,1:,:], i_comp[:,:,:-1,:]) + self.l1(i_comp[:,:,:,1:] , i_comp[:,:,:,:-1])
+
+def test_mask_dilation():
+    from PIL import Image
+    import numpy as np
+
+    png = Image.open('test.png')
+    png = torchvision.transforms.ToTensor()(png)
+    loss = Loss(None)
+    # mask = torch.randn(1,1,64,64).float()
+    # f = 0.1
+    # print(torch.sum(mask>=f))
+    # mask[mask<f] = 0.
+    # mask[mask >= f] = 1.
+    mask = png.unsqueeze(0)
+    import matplotlib.pyplot as plt
+    plt.title('black hole')
+    plt.imshow(mask.squeeze().numpy(), cmap='gray')
+    nmask = loss.dilation(mask,mask)
+    plt.figure()
+    plt.title('white bigger hole')
+    plt.imshow(nmask.squeeze().numpy(), cmap='gray')
+    plt.show()
 
 
 
-img = torch.randn(4,3,512,512)
-vgg = VGG16()
-out1, out2 ,out3 = vgg(img)
-print(out1.shape)
-print(out2.shape)
-print(out3.shape)
 
 
 
