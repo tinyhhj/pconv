@@ -5,13 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import itertools
 from copy import deepcopy
+import torch
 
-
-class MaskGenerator:
+class MaskGenerator(torch.utils.data.Dataset):
     def __init__(self, size,rand_seed =None, file_path= None):
         if isinstance(size, int):
             self.size = (size, size)
-        elif isinstance(size, tuple):
+        elif isinstance(size, (tuple,list)):
             self.size = size
         else:
             raise ValueError('size must be int or tuple')
@@ -59,6 +59,15 @@ class MaskGenerator:
         mask = mask[y:y+self.size[0], x:x+self.size[1]]
 
         return (mask > 1).astype(np.uint8)
+    def __len__(self):
+        return 1000000
+    def __getitem__(self, idx):
+
+        if np.random.binomial(1,0.5)> 0:
+            return self.load_mask().transpose(2,0,1)
+        else:
+            return self.random_mask().transpose(2,0,1)
+
 def test():
     g = MaskGenerator(512,43,'irregular_mask/disocclusion_img_mask')
     _,axes= plt.subplots(5,5,figsize=(20,20))
@@ -118,7 +127,7 @@ def test_mask():
     axes[1][3].imshow(out_mask8[0, 0, :, :], cmap='gray', vmin=0, vmax=1)
     plt.show()
 
-test_mask()
+# test()
 
 
 

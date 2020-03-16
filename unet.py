@@ -1,5 +1,7 @@
 import torch
 from partialconv2d import PartialConv2d
+import glob
+import os
 
 class Pconv(PartialConv2d):
     def __init__(self,*args, batch=None,act_fn = None, **kwargs):
@@ -20,6 +22,7 @@ class Pconv(PartialConv2d):
 class Unet(torch.nn.Module):
     def __init__(self, cin, cout):
         super().__init__()
+        self.name = 'unet'
         def batch(cin):
             return torch.nn.BatchNorm2d(cin)
         def active(encoder=True):
@@ -103,6 +106,24 @@ class Unet(torch.nn.Module):
         out_img8 = torch.nn.Sigmoid()(out_img8)
 
         return out_img8, out_mask8
+
+    def load(self, path):
+        checkpoint = self.last_checkpoint(path,'.pth')
+        if len(checkpoint) == 0:
+            print('[!] No checkpoint found')
+            return 0
+        self.load_state_dict(torch.load(checkpoint[0]))
+        self.iteration = int(checkpoint[0].split('_')[1])
+        print(f'[!] iteration {self.iteration} checkpoint load')
+        return self.iteration
+    def save(self,path,loss):
+        filename = f'{self.name}_{self.iteration}_{loss:.4f}.pth'
+        torch.save(self.state_dict(),os.path.join(path,filename))
+
+    def last_checkpoint(self,path, suffix):
+        return [os.path.join(path, f) for f in sorted(
+            [f for f in os.listdir(path) if f.startswith(self.name) and f.endswith(suffix)],
+            key=lambda file: int(file.split('_')[1]), reverse=True)]
 
 if __name__ =='__main__':
     model = Unet(3,64)

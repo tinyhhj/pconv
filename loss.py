@@ -41,7 +41,7 @@ class Loss(torch.nn.Module):
         self.loss_style_weight = 120
         self.loss_total_variation_weight = 0.1
 
-    def forward(self, in_img,in_mask,out_img,gt):
+    def forward(self, gt,in_mask,out_img):
         # mask 1 valid , 0 hole
         i_comp = out_img * (1-in_mask) + gt * in_mask
         self.loss_hole = self.l1((1-in_mask)*out_img,(1-in_mask)*gt)
