@@ -42,7 +42,7 @@ class MaskGenerator(torch.utils.data.Dataset):
             a1,a2,a3 = randint(3,180), randint(3,180), randint(3,180)
             thickness = randint(3,thick)
             cv2.ellipse(mask,(x1,y1),(s1,s2),a1,a2,a3,(1,1,1),thickness)
-        return 1 - mask
+        return (1 - mask).astype(np.uint8)
     def load_mask(self):
         mask = cv2.imread(np.random.choice(self.files,1)[0])
 
@@ -63,7 +63,7 @@ class MaskGenerator(torch.utils.data.Dataset):
         return 1000000
     def __getitem__(self, idx):
 
-        if np.random.binomial(1,0.5)> 0:
+        if np.random.binomial(1,0.5)> 0 and hasattr(self,'files'):
             return self.load_mask().transpose(2,0,1)
         else:
             return self.random_mask().transpose(2,0,1)

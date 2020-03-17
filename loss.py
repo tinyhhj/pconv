@@ -2,21 +2,27 @@ import torchvision
 import torch
 
 class VGG16:
-    def __init__(self):
+    def __init__(self,device):
         vgg16 = torchvision.models.vgg16(pretrained=True)
         # pool layer 1 2 3
         def require_grad_false(m):
             for p in m.parameters():
                 p.requires_grad = False
-        self.enc1 = torch.nn.Sequential(*vgg16.features[:5])
-        self.enc2 = torch.nn.Sequential(*vgg16.features[5:10])
-        self.enc3 = torch.nn.Sequential(*vgg16.features[10:17])
-
+        self.enc1 = torch.nn.Sequential(*vgg16.features[:5]).to(device)
+        self.enc2 = torch.nn.Sequential(*vgg16.features[5:10]).to(device)
+        self.enc3 = torch.nn.Sequential(*vgg16.features[10:17]).to(device)
+        self.mean = [0.485, 0.456, 0.406]
+        self.std =  [0.229, 0.224, 0.225]
+        self.normalize = torchvision.transforms.Normalize(self.mean,self.std)
         require_grad_false(self.enc1)
         require_grad_false(self.enc2)
         require_grad_false(self.enc3)
 
     def __call__(self, in_img):
+        normalize = []
+        for  img in in_img:
+            normalize.append(self.normalize(img))
+        in_img = torch.stack(normalize)
         out1 = self.enc1(in_img)
         out2 = self.enc2(out1)
         out3 = self.enc3(out2)
@@ -24,7 +30,7 @@ class VGG16:
 
 
 class Loss(torch.nn.Module):
-    def __init__(self, extractor):
+    def __init__(self, extractor,device):
         super().__init__()
         self.extractor = extractor
         self.l1 = torch.nn.L1Loss()
@@ -33,6 +39,7 @@ class Loss(torch.nn.Module):
         self.loss_perceptual = None
         self.loss_style = None
         self.loss_total_variation = None
+        self.device = device
 
         # weight for loss
         self.loss_valid_weight = 1
@@ -86,7 +93,7 @@ class Loss(torch.nn.Module):
     def gram_matrix(self,y):
         (b, ch, h, w) = y.size()
         features = y.view(b, ch, w * h)
-        features_t = features.transpose(1, 2).sum()
+        features_t = features.transpose(1, 2)
         gram = features.bmm(features_t) / (ch * h * w)
         return gram
     def dilation(self, i_comp, mask):
@@ -94,7 +101,7 @@ class Loss(torch.nn.Module):
         mb,mc,mh,mw = mask.size()
 
         # mask 1 valid , 0 hole
-        kernel = torch.ones(mc,c,3,3)
+        kernel = torch.ones(mc,c,3,3).to(self.device)
         dilated_mask =  torch.nn.functional.conv2d(1-mask,kernel,padding=1)
         dilated_mask = torch.clamp(dilated_mask, 0, 1)
         return dilated_mask

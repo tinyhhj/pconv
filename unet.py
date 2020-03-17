@@ -54,6 +54,8 @@ class Unet(torch.nn.Module):
         self.pconv14 = Pconv(cout*6, cout*2,3,1,1,batch=batch(cout*2),act_fn=active(False),multi_channel=True, return_mask=True)
         self.pconv15 = Pconv(cout*3, cout,3,1,1,batch=batch(cout),act_fn=active(False),multi_channel=True, return_mask=True)
         self.pconv16 = Pconv(cout+cin,cin,3,1,1,multi_channel=True, return_mask=True)
+        # self.pconvout = torch.nn.Conv2d(3,3,3,1,1)
+
 
     def forward(self, in_img, in_mask):
         # encoder
@@ -111,13 +113,14 @@ class Unet(torch.nn.Module):
         checkpoint = self.last_checkpoint(path,'.pth')
         if len(checkpoint) == 0:
             print('[!] No checkpoint found')
-            return 0
+            return 0 , 9999
         self.load_state_dict(torch.load(checkpoint[0]))
-        self.iteration = int(checkpoint[0].split('_')[1])
-        print(f'[!] iteration {self.iteration} checkpoint load')
-        return self.iteration
-    def save(self,path,loss):
-        filename = f'{self.name}_{self.iteration}_{loss:.4f}.pth'
+        iteration = int(checkpoint[0].split('_')[1])
+        loss = float(checkpoint[0].split('_')[2][:-4])
+        print(f'[!] iteration {iteration} checkpoint load')
+        return iteration, loss
+    def save(self,path,iteration,loss):
+        filename = f'{self.name}_{iteration}_{loss:.6f}.pth'
         torch.save(self.state_dict(),os.path.join(path,filename))
 
     def last_checkpoint(self,path, suffix):
