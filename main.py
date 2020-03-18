@@ -20,7 +20,7 @@ parser.add_argument('--input_size', type=int,nargs='+', default=[512,512])
 parser.add_argument('--checkpoint',type=str, default='checkpoint')
 parser.add_argument('--iter_log', type=int, default=100)
 parser.add_argument('--iter_save',type=int, default=1000)
-parser.add_argument('--iter_sample',type=int, default=100)
+parser.add_argument('--iter_sample',type=int, default=1000)
 parser.add_argument('--iter_eval', type=int, default=1000)
 parser.add_argument('--mini-eval', type=int, default=5000)
 
@@ -94,8 +94,8 @@ class AverageMeter(object):
 dataset = torchvision.datasets.ImageFolder(args.data, transform=transform)
 val_dataset = torchvision.datasets.ImageFolder(args.val_data, transform=val_transform)
 val_dataset,_ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
-dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=args.batch_size)
-val_dataloader = torch.utils.data.DataLoader(val_dataset, shuffle=False, batch_size=args.batch_size)
+dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
+val_dataloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size=args.batch_size,drop_last=True)
 mask_generator = MaskGenerator(args.input_size,file_path=args.mask)
 maskloader = torch.utils.data.DataLoader(mask_generator,shuffle=False,batch_size=args.batch_size)
 maskiter = iter(maskloader)
@@ -115,6 +115,7 @@ def record_losses(criterion, loss_valid_avg,loss_hole_avg,loss_perceptual_avg,lo
 
 def validate(model,criterion, val_loader,maskloader):
     #eval
+    global cur_iter
     model.eval()
     total_loss_avg = AverageMeter('total_loss',':.6f')
     loss_valid_avg = AverageMeter('loss_valid',':.4f')
@@ -148,6 +149,12 @@ def validate(model,criterion, val_loader,maskloader):
 
             if args.iter_log and i % args.iter_log == 0:
                 progress.display(i)
+            if args.iter_sample and cur_iter % args.iter_sample == 0:
+                masked_img = (images) * masks + (1 - masks)
+                torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'),
+                                             normalize=True)
+                torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'),
+                                             normalize=True)
     return total_loss_avg.avg
 
 
@@ -207,10 +214,6 @@ def train(model, criterion, dataloader, maskloader,val_loader):
             loss = 0
             if args.iter_log and cur_iter % args.iter_log == 0:
                 progress.display(i)
-            if args.iter_sample and cur_iter % args.iter_sample == 0:
-                masked_img = (images.detach()) * masks + (1-masks)
-                torchvision.utils.save_image(out_img.detach(), os.path.join(sample_dir, f'{cur_iter}_out.jpg'),normalize=True)
-                torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'),normalize=True)
             if args.iter_eval and cur_iter % args.iter_eval == 0:
                 loss = validate(model, criterion,val_loader,maskloader)
             if args.iter_save and cur_iter % args.iter_save == 0:
@@ -218,7 +221,7 @@ def train(model, criterion, dataloader, maskloader,val_loader):
                 model.save(args.checkpoint,cur_iter,loss)
                 if best_loss > loss:
                     last_checkpoint = model.last_checkpoint(args.checkpoint,'.pth')[0]
-                    shutil.copy(last_checkpoint, os.path.join(args.checkpoint, 'best_model.pth'))
+                    shutil.copy(last_checkpoint, os.path.join(args.checkpoint, f'best_model_{loss}.pth'))
 
 train(model,criterion,dataloader,maskloader,val_dataloader)
 
