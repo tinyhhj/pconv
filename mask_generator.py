@@ -44,6 +44,7 @@ class MaskGenerator(torch.utils.data.Dataset):
             cv2.ellipse(mask,(x1,y1),(s1,s2),a1,a2,a3,(1,1,1),thickness)
         return (1 - mask).astype(np.uint8)
     def load_mask(self):
+        # hwc
         mask = cv2.imread(np.random.choice(self.files,1)[0])
 
         rand = np.random.randint(-180,180)
@@ -69,7 +70,7 @@ class MaskGenerator(torch.utils.data.Dataset):
             return self.random_mask().transpose(2,0,1)
 
 def test():
-    g = MaskGenerator(512,43,'irregular_mask/disocclusion_img_mask')
+    g = MaskGenerator(512,43,'D:\dataset\irregular_mask\irregular_mask\disocclusion_img_mask')
     _,axes= plt.subplots(5,5,figsize=(20,20))
     axes = list(itertools.chain.from_iterable(axes))
 

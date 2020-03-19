@@ -9,6 +9,7 @@ from unet import Unet
 from loss import Loss, VGG16
 from mask_generator import MaskGenerator
 import shutil
+from datetime import datetime
 parser = argparse.ArgumentParser()
 parser.add_argument('--data', type=str, default='D:\git\crawler\zigbang\\train')
 parser.add_argument('--mask' , type=str, default='D:\dataset\irregular_mask\irregular_mask\disocclusion_img_mask')
@@ -17,8 +18,8 @@ parser.add_argument('--batch_size',type=int ,default=2)
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--max_iter',type=int, default=1000000)
 parser.add_argument('--input_size', type=int,nargs='+', default=[512,512])
-parser.add_argument('--checkpoint',type=str, default='checkpoint')
-parser.add_argument('--iter_log', type=int, default=1)
+parser.add_argument('--checkpoint',type=str, default='checkpoints/pconv')
+parser.add_argument('--iter_log', type=int, default=1000)
 parser.add_argument('--iter_save',type=int, default=1000)
 parser.add_argument('--iter_sample',type=int, default=1000)
 parser.add_argument('--iter_eval', type=int, default=1000)
@@ -28,12 +29,16 @@ parser.add_argument('--iter-lr', type=int, default= 200000)
 args = parser.parse_args()
 
 # make dir data checkpoint
-os.makedirs(args.data,exist_ok=True)
+# os.makedirs(args.data,exist_ok=True)
+date = datetime.today().strftime("%Y/%m/%d")
 os.makedirs(args.checkpoint,exist_ok=True)
 sample_dir = os.path.join(args.checkpoint,'sample')
+result_dir = os.path.join(args.checkpoint,date, 'results')
+os.makedirs(result_dir,exist_ok=True)
 # if we do sample make dir
 if args.iter_sample > 0:
     os.makedirs(sample_dir,exist_ok=True)
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -162,14 +167,12 @@ def validate(model,criterion, val_loader,maskloader):
                                              normalize=True)
     return total_loss_avg.avg
 
-
-model = Unet(3,64).to(device)
-state_dict = model.load(args.checkpoint)
-cur_iter = state_dict['iter']
-best_loss = state_dict['loss']
-lr = state_dict.get('lr', args.lr)
 def train(model, criterion, dataloader, maskloader,val_loader):
-    global cur_iter, best_loss, lr
+    global state_dict
+    cur_iter = state_dict['iter']
+    best_loss = state_dict['loss']
+    lr = state_dict.get('lr', args.lr)
+
     epoch = 0
     need_train = True
     total_loss_avg = AverageMeter('total_loss', ':.6f')
@@ -237,9 +240,31 @@ def train(model, criterion, dataloader, maskloader,val_loader):
             if args.iter_lr and cur_iter % args.iter_lr == 0:
                 # decay lr
                 scheduler.step()
+model = Unet(3, 64)
+state_dict = model.load(args.checkpoint)
+
+def inference(image,mask):
+    global model,result_dir
+    model.eval()
+    # 0 for hole 1 for valid
+    mask = torch.where(mask>0, torch.tensor(0),torch.tensor(1))
+    mask = torch.cat([mask,mask,mask]).float()
+    out_img, _ = model(image.unsqueeze(0),mask.unsqueeze(0))
+    result = out_img.squeeze(0) * (1-mask) + mask * image
+
+    # save result
+    time = datetime.today().strftime('%H_%M')
+    savepoint = os.path.join(result_dir,f'{time}_{image.filename}')
+    result_img = torchvision.transforms.ToPILImage()(result)
+    result_img.save(savepoint)
+    return result_img
 
 
-train(model,criterion,dataloader,maskloader,val_dataloader)
+
+
+if __name__ == '__main__':
+    # model = Unet(3, 64).to(device)
+    train(model.to(device),criterion,dataloader,maskloader,val_dataloader)
 
 
 
