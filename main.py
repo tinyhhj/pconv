@@ -117,7 +117,8 @@ def reset_losses(*args):
 
 def validate(model,criterion, val_loader,maskloader):
     #eval
-    global cur_iter
+    global state_dict
+    cur_iter = state_dict['iter']
     model.eval()
     total_loss_avg = AverageMeter('total_loss',':.6f')
     loss_valid_avg = AverageMeter('loss_valid',':.4f')
