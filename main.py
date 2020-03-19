@@ -26,7 +26,7 @@ parser.add_argument('--iter_eval', type=int, default=1000)
 parser.add_argument('--mini-eval', type=int, default=5000)
 parser.add_argument('--iter-lr', type=int, default= 200000)
 
-args = parser.parse_known_args()
+args,_ = parser.parse_known_args()
 
 # make dir data checkpoint
 # os.makedirs(args.data,exist_ok=True)
