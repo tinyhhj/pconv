@@ -41,7 +41,6 @@ if args.iter_sample > 0:
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
 feature_extractor = VGG16(device)
 criterion = Loss(feature_extractor,device)
 mean = [0.485, 0.456, 0.406]
@@ -97,14 +96,7 @@ class AverageMeter(object):
         fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
         return fmtstr.format(**self.__dict__)
 
-dataset = torchvision.datasets.ImageFolder(args.data, transform=transform)
-val_dataset = torchvision.datasets.ImageFolder(args.val_data, transform=val_transform)
-val_dataset,_ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
-dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
-val_dataloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size=args.batch_size,drop_last=True)
-mask_generator = MaskGenerator(args.input_size,file_path=args.mask)
-maskloader = torch.utils.data.DataLoader(mask_generator,shuffle=False,batch_size=args.batch_size)
-maskiter = iter(maskloader)
+
 
 def record_losses(criterion, loss_valid_avg,loss_hole_avg,loss_perceptual_avg,loss_style_avg,loss_total_variation_avg):
     loss_valid = criterion.loss_valid.item() * criterion.loss_valid_weight
@@ -264,6 +256,14 @@ def inference(image,mask):
 
 if __name__ == '__main__':
     # model = Unet(3, 64).to(device)
+    dataset = torchvision.datasets.ImageFolder(args.data, transform=transform)
+    val_dataset = torchvision.datasets.ImageFolder(args.val_data, transform=val_transform)
+    val_dataset, _ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
+    dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
+    mask_generator = MaskGenerator(args.input_size, file_path=args.mask)
+    maskloader = torch.utils.data.DataLoader(mask_generator, shuffle=False, batch_size=args.batch_size)
+    maskiter = iter(maskloader)
     train(model.to(device),criterion,dataloader,maskloader,val_dataloader)
 
 
