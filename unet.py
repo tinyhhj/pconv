@@ -110,18 +110,24 @@ class Unet(torch.nn.Module):
         return out_img8, out_mask8
 
     def load(self, path):
-        checkpoint = self.last_checkpoint(path,'.pth')
-        if len(checkpoint) == 0:
+        best_model = os.path.join(path,'best_model.pth')
+        if not os.path.exists(best_model):
             print('[!] No checkpoint found')
-            return 0 , 9999
-        self.load_state_dict(torch.load(checkpoint[0]))
-        iteration = int(checkpoint[0].split('_')[1])
-        loss = float(checkpoint[0].split('_')[2][:-4])
-        print(f'[!] iteration {iteration} checkpoint load')
-        return iteration, loss
-    def save(self,path,iteration,loss):
+            return {
+                'iter': 0,
+                'loss': 9999}
+        state_dict = torch.load(best_model)
+        self.load_state_dict(state_dict['state'])
+        print(f'[!] iteration {state_dict["iter"]} checkpoint load')
+        return state_dict
+    def save(self,path,iteration,loss, lr):
         filename = f'{self.name}_{iteration}_{loss:.6f}.pth'
-        torch.save(self.state_dict(),os.path.join(path,filename))
+        torch.save({
+            'state':self.state_dict(),
+            'iter': iteration,
+            'loss': loss,
+            'lr' : lr}
+                   ,os.path.join(path,filename))
 
     def last_checkpoint(self,path, suffix):
         return [os.path.join(path, f) for f in sorted(

@@ -15,14 +15,15 @@ parser.add_argument('--mask' , type=str, default='D:\dataset\irregular_mask\irre
 parser.add_argument('--val_data', type=str, default='D:\git\crawler\zigbang\\val')
 parser.add_argument('--batch_size',type=int ,default=2)
 parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--max_iter',type=int, default=100000)
+parser.add_argument('--max_iter',type=int, default=1000000)
 parser.add_argument('--input_size', type=int,nargs='+', default=[512,512])
 parser.add_argument('--checkpoint',type=str, default='checkpoint')
-parser.add_argument('--iter_log', type=int, default=100)
+parser.add_argument('--iter_log', type=int, default=1)
 parser.add_argument('--iter_save',type=int, default=1000)
 parser.add_argument('--iter_sample',type=int, default=1000)
 parser.add_argument('--iter_eval', type=int, default=1000)
 parser.add_argument('--mini-eval', type=int, default=5000)
+parser.add_argument('--iter-lr', type=int, default= 200000)
 
 args = parser.parse_args()
 
@@ -112,6 +113,10 @@ def record_losses(criterion, loss_valid_avg,loss_hole_avg,loss_perceptual_avg,lo
     loss_style_avg.update(loss_style)
     loss_total_variation_avg.update(loss_total_variation)
 
+def reset_losses(*args):
+    for loss in args:
+        loss.reset()
+
 
 def validate(model,criterion, val_loader,maskloader):
     #eval
@@ -159,10 +164,12 @@ def validate(model,criterion, val_loader,maskloader):
 
 
 model = Unet(3,64).to(device)
-cur_iter, best_loss = model.load(args.checkpoint)
-
+state_dict = model.load(args.checkpoint)
+cur_iter = state_dict['iter']
+best_loss = state_dict['loss']
+lr = state_dict.get('lr', args.lr)
 def train(model, criterion, dataloader, maskloader,val_loader):
-    global cur_iter
+    global cur_iter, best_loss, lr
     epoch = 0
     need_train = True
     total_loss_avg = AverageMeter('total_loss', ':.6f')
@@ -179,7 +186,8 @@ def train(model, criterion, dataloader, maskloader,val_loader):
                               loss_style_avg,
                               loss_total_variation_avg],
                              prefix='Train: ')
-    optimizer = torch.optim.Adam(model.parameters(),args.lr)
+    optimizer = torch.optim.Adam(model.parameters(),lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
     maskiter = iter(maskloader)
     while need_train:
         epoch += 1
@@ -212,16 +220,24 @@ def train(model, criterion, dataloader, maskloader,val_loader):
 
             cur_iter += 1
             loss = 0
+
             if args.iter_log and cur_iter % args.iter_log == 0:
                 progress.display(i)
             if args.iter_eval and cur_iter % args.iter_eval == 0:
                 loss = validate(model, criterion,val_loader,maskloader)
+                # after eval reset train loss
+                reset_losses(*progress.meters)
             if args.iter_save and cur_iter % args.iter_save == 0:
                 # iter_eval == iter_save before save evalutate update loss
-                model.save(args.checkpoint,cur_iter,loss)
+                model.save(args.checkpoint,cur_iter,loss, optimizer.param_groups[0]['lr'])
                 if best_loss > loss:
+                    best_loss = loss
                     last_checkpoint = model.last_checkpoint(args.checkpoint,'.pth')[0]
-                    shutil.copy(last_checkpoint, os.path.join(args.checkpoint, f'best_model_{loss}.pth'))
+                    shutil.copy(last_checkpoint, os.path.join(args.checkpoint, f'best_model.pth'))
+            if args.iter_lr and cur_iter % args.iter_lr == 0:
+                # decay lr
+                scheduler.step()
+
 
 train(model,criterion,dataloader,maskloader,val_dataloader)
 
