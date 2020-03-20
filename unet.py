@@ -54,6 +54,24 @@ class Unet(torch.nn.Module):
         self.pconv14 = Pconv(cout*6, cout*2,3,1,1,batch=batch(cout*2),act_fn=active(False),multi_channel=True, return_mask=True)
         self.pconv15 = Pconv(cout*3, cout,3,1,1,batch=batch(cout),act_fn=active(False),multi_channel=True, return_mask=True)
         self.pconv16 = Pconv(cout+cin,cin,3,1,1,multi_channel=True, return_mask=True)
+
+        def init_func(m):
+            gain = 0.02
+            classname = m.__class__.__name__
+            if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
+                torch.nn.init.normal_(m.weight.data, 0.0, gain)
+                    # nn.init.xavier_normal_(m.weight.data, gain=gain)
+                    # nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+                    # nn.init.orthogonal_(m.weight.data, gain=gain)
+
+                if hasattr(m, 'bias') and m.bias is not None:
+                    torch.nn.init.constant_(m.bias.data, 0.0)
+
+            elif classname.find('BatchNorm2d') != -1:
+                torch.nn.init.normal_(m.weight.data, 1.0, gain)
+                torch.nn.init.constant_(m.bias.data, 0.0)
+
+        self.apply(init_func)
         # self.pconvout = torch.nn.Conv2d(3,3,3,1,1)
 
 
