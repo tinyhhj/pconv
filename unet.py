@@ -23,6 +23,7 @@ class Unet(torch.nn.Module):
     def __init__(self, cin, cout):
         super().__init__()
         self.name = 'unet'
+        self.freeze_batch = False
         def batch(cin):
             return torch.nn.BatchNorm2d(cin)
         def active(encoder=True):
@@ -151,6 +152,13 @@ class Unet(torch.nn.Module):
         return [os.path.join(path, f) for f in sorted(
             [f for f in os.listdir(path) if f.startswith(self.name) and f.endswith(suffix)],
             key=lambda file: int(file.split('_')[1]), reverse=True)]
+    def train(self):
+        super().train()
+        if self.freeze_batch:
+            for name,module in self.named_modules():
+                if name in map(lambda s:'pconv'+str(s),range(1,9)):
+                    # only encoder batchnorm freeze
+                    module.eval()
 
 if __name__ =='__main__':
     model = Unet(3,64)

@@ -115,10 +115,9 @@ def reset_losses(*args):
         loss.reset()
 
 
-def validate(model,criterion, val_loader,maskloader):
+def validate(model,criterion, val_loader,maskloader,cur_iter):
     #eval
     global state_dict
-    cur_iter = state_dict['iter']
     model.eval()
     total_loss_avg = AverageMeter('total_loss',':.6f')
     loss_valid_avg = AverageMeter('loss_valid',':.4f')
@@ -152,7 +151,7 @@ def validate(model,criterion, val_loader,maskloader):
 
             if args.iter_log and i % args.iter_log == 0:
                 progress.display(i)
-            if args.iter_sample and cur_iter % args.iter_sample == 0:
+            if args.iter_sample and i % args.iter_sample == 0:
                 masked_img = (images) * masks + (1 - masks)
                 torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'),
                                              normalize=True)
@@ -220,7 +219,7 @@ def train(model, criterion, dataloader, maskloader,val_loader):
             if args.iter_log and cur_iter % args.iter_log == 0:
                 progress.display(i)
             if args.iter_eval and cur_iter % args.iter_eval == 0:
-                loss = validate(model, criterion,val_loader,maskloader)
+                loss = validate(model, criterion,val_loader,maskloader,cur_iter)
                 # after eval reset train loss
                 reset_losses(*progress.meters)
             if args.iter_save and cur_iter % args.iter_save == 0:
