@@ -25,6 +25,7 @@ parser.add_argument('--iter_sample',type=int, default=1000)
 parser.add_argument('--iter_eval', type=int, default=1000)
 parser.add_argument('--mini-eval', type=int, default=5000)
 parser.add_argument('--iter-lr', type=int, default= 200000)
+parser.add_argument('--dataset', type=str, default='folder')
 
 args,_ = parser.parse_known_args()
 
@@ -256,8 +257,13 @@ def inference(image,mask):
 
 if __name__ == '__main__':
     # model = Unet(3, 64).to(device)
-    dataset = torchvision.datasets.ImageFolder(args.data, transform=transform)
-    val_dataset = torchvision.datasets.ImageFolder(args.val_data, transform=val_transform)
+    if args.dataset == 'folder':
+        dataset = torchvision.datasets.ImageFolder(args.data, transform=transform)
+        val_dataset = torchvision.datasets.ImageFolder(args.val_data, transform=val_transform)
+        # val_dataset, _ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
+    else:
+        dataset = torchvision.datasets.LSUN(args.data,classes=['bedroom_train'],transform=transform)
+        val_dataset = torchvision.datasets.LSUN(args.val_data, classes=['bedroom_val'],transform= transform)
     val_dataset, _ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
     dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
