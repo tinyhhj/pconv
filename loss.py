@@ -19,10 +19,10 @@ class VGG16:
         require_grad_false(self.enc3)
 
     def __call__(self, in_img):
-        normalize = []
-        for  img in in_img:
-            normalize.append(self.normalize(img))
-        in_img = torch.stack(normalize)
+        # normalize = []
+        # for  img in in_img:
+        #     normalize.append(self.normalize(img))
+        # in_img = torch.stack(normalize)
         out1 = self.enc1(in_img)
         out2 = self.enc2(out1)
         out3 = self.enc3(out2)
