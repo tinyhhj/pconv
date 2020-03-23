@@ -124,7 +124,8 @@ class Unet(torch.nn.Module):
         out_img8, out_mask8 = upsample(out_img8, out_mask8)
         out_img8, out_mask8 = concat(out_img8, in_img, out_mask8, in_mask)
         out_img8, out_mask8 = self.pconv16(out_img8, out_mask8)
-        out_img8 = torch.nn.Sigmoid()(out_img8)
+        out_img8 = (torch.nn.Tanh()(out_img8) + 1)/2
+        # out_img8 = torch.nn.Sigmoid()(out_img8)
 
         return out_img8, out_mask8
 
