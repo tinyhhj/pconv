@@ -164,7 +164,7 @@ def validate(model,criterion, val_loader,maskloader,cur_iter):
                 masked_img = (images) * masks + (1 - masks)
                 torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'))
                 torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'))
-                writer.add_image(f'{cur_iter}_sample', torchvision.utils.make_grid(torch.stack([out_img,masked_img])))
+                writer.add_image(f'{cur_iter}_sample', torchvision.utils.make_grid(torch.cat([out_img,masked_img])))
     return total_loss_avg.avg
 
 def train(model, criterion, dataloader, maskloader,val_loader):
