@@ -55,11 +55,12 @@ class MaskGenerator(torch.utils.data.Dataset):
         kernel = np.ones((rand,rand),np.uint8)
         mask = cv2.erode(mask,kernel,iterations=1)
 
-        x = np.random.randint(0,mask.shape[1] - self.size[1])
-        y = np.random.randint(0,mask.shape[0] - self.size[0])
-        mask = mask[y:y+self.size[0], x:x+self.size[1]]
+        mask = cv2.resize(mask, (self.size[1],self.size[0]),cv2.INTER_NEAREST)
+        # x = np.random.randint(0,mask.shape[1] - self.size[1])
+        # y = np.random.randint(0,mask.shape[0] - self.size[0])
+        # mask = mask[y:y+self.size[0], x:x+self.size[1]]
 
-        return (mask > 1).astype(np.uint8)
+        return (mask >= 255).astype(np.uint8)
     def __len__(self):
         return 1000000
     def __getitem__(self, idx):

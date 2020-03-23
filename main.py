@@ -158,13 +158,13 @@ def validate(model,criterion, val_loader,maskloader,cur_iter):
 
             if args.iter_log and i % args.iter_log == 0:
                 progress.display(i)
-                writer.add_scalar('val_total_loss', total_loss_avg.avg, cur_iter)
+                writer.add_scalar('val_total_loss', total_loss_avg.avg, cur_iter+i)
             if args.iter_sample and i % args.iter_sample == 0:
                 images = images * torch.as_tensor(std, dtype=torch.float32, device=device)[:,None,None] + torch.as_tensor(mean, dtype=torch.float32, device=device)[:,None,None]
                 masked_img = (images) * masks + (1 - masks)
                 torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'))
                 torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'))
-                writer.add_image(f'{cur_iter}_sample', torchvision.utils.make_grid(torch.cat([out_img,masked_img])))
+                writer.add_image(f'{cur_iter}_sample', torchvision.utils.make_grid(torch.cat([masked_img,out_img]),nrow=args.batch_size))
     return total_loss_avg.avg
 
 def train(model, criterion, dataloader, maskloader,val_loader):
