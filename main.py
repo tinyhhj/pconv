@@ -53,12 +53,12 @@ transform = torchvision.transforms.Compose([
     torchvision.transforms.Resize(args.input_size),
     torchvision.transforms.RandomHorizontalFlip(),
     torchvision.transforms.ToTensor(),
-    # torchvision.transforms.Normalize(mean,std)
+    torchvision.transforms.Normalize(mean,std)
 ])
 val_transform = torchvision.transforms.Compose([
     torchvision.transforms.Resize(args.input_size),
     torchvision.transforms.ToTensor(),
-    # torchvision.transforms.Normalize(mean, std)
+    torchvision.transforms.Normalize(mean, std)
 ])
 
 # writer
@@ -160,12 +160,11 @@ def validate(model,criterion, val_loader,maskloader,cur_iter):
                 progress.display(i)
                 writer.add_scalar('val_total_loss', total_loss_avg.avg, cur_iter)
             if args.iter_sample and i % args.iter_sample == 0:
+                images = images * torch.as_tensor(std, dtype=torch.float32, device=device) + torch.as_tensor(mean, dtype=torch.float32, device=device)
                 masked_img = (images) * masks + (1 - masks)
-                torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'),
-                                             normalize=True)
-                torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'),
-                                             normalize=True)
-                writer.add_image(f'{cur_iter}_sample', out_img,torch.stack([out_img,masked_img]))
+                torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'))
+                torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'))
+                writer.add_image(f'{cur_iter}_sample', torchvision.utils.make_grid(torch.stack([out_img,masked_img])))
     return total_loss_avg.avg
 
 def train(model, criterion, dataloader, maskloader,val_loader):
@@ -213,6 +212,8 @@ def train(model, criterion, dataloader, maskloader,val_loader):
 
             optimizer.zero_grad()
             images,masks = images.to(device), masks.to(device,dtype=torch.float)
+
+            assert (torch.unique(masks) == torch.tensor([0,1])).all(), f'masks should only 0,1 {torch.unique(masks)}'
 
             out_img, _ = model(images,masks)
             # gt, in_mask, out_img
