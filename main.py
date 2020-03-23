@@ -10,6 +10,8 @@ from loss import Loss, VGG16
 from mask_generator import MaskGenerator
 import shutil
 from datetime import datetime
+from torch.utils.tensorboard import SummaryWriter
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--data', type=str, default='D:\git\crawler\zigbang\\train')
 parser.add_argument('--mask' , type=str, default='D:\dataset\irregular_mask\irregular_mask\disocclusion_img_mask')
@@ -26,6 +28,7 @@ parser.add_argument('--iter_eval', type=int, default=1000)
 parser.add_argument('--mini-eval', type=int, default=5000)
 parser.add_argument('--iter-lr', type=int, default= 200000)
 parser.add_argument('--dataset', type=str, default='folder')
+parser.add_argument('--tensor-log',type=str,default='logs/pconv')
 
 args,_ = parser.parse_known_args()
 
@@ -57,6 +60,9 @@ val_transform = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
     # torchvision.transforms.Normalize(mean, std)
 ])
+
+# writer
+writer = SummaryWriter(args.tensor_log)
 
 class ProgressMeter(object):
     def __init__(self, num_batches, meters, prefix=""):
@@ -152,12 +158,14 @@ def validate(model,criterion, val_loader,maskloader,cur_iter):
 
             if args.iter_log and i % args.iter_log == 0:
                 progress.display(i)
+                writer.add_scalar('val_total_loss', total_loss_avg.avg, cur_iter)
             if args.iter_sample and i % args.iter_sample == 0:
                 masked_img = (images) * masks + (1 - masks)
                 torchvision.utils.save_image(out_img, os.path.join(sample_dir, f'{cur_iter}_out.jpg'),
                                              normalize=True)
                 torchvision.utils.save_image(masked_img, os.path.join(sample_dir, f'{cur_iter}_image.jpg'),
                                              normalize=True)
+                writer.add_image(f'{cur_iter}_sample', out_img,torch.stack([out_img,masked_img]))
     return total_loss_avg.avg
 
 def train(model, criterion, dataloader, maskloader,val_loader):
@@ -219,6 +227,9 @@ def train(model, criterion, dataloader, maskloader,val_loader):
 
             if args.iter_log and cur_iter % args.iter_log == 0:
                 progress.display(i)
+                writer.add_scalar('total_loss', total_loss_avg.avg, cur_iter)
+                writer.add_scalar('loss_hole', loss_hole_avg.avg, cur_iter)
+                writer.add_scalar('loss_perceptual', loss_perceptual_avg.avg, cur_iter)
             if args.iter_eval and cur_iter % args.iter_eval == 0:
                 loss = validate(model, criterion,val_loader,maskloader,cur_iter)
                 # after eval reset train loss
