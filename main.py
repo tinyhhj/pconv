@@ -264,7 +264,13 @@ if __name__ == '__main__':
     else:
         dataset = torchvision.datasets.LSUN(args.data,classes=['bedroom_train'],transform=transform)
         val_dataset = torchvision.datasets.LSUN(args.val_data, classes=['bedroom_val'],transform= transform)
-    val_dataset, _ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
+
+    if args.mini_eval:
+        if args.dataset == 'folder':
+            val_dataset, _ = torch.utils.data.random_split(val_dataset, [args.mini_eval, len(val_dataset) - args.mini_eval])
+        else:
+            dataset,val_dataset = torch.utils.data.random_split(dataset, [len(dataset) - args.mini_eval, args.mini_eval])
+
     dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
     val_dataloader = torch.utils.data.DataLoader(val_dataset, shuffle=True, batch_size=args.batch_size, drop_last=True)
     mask_generator = MaskGenerator(args.input_size, file_path=args.mask)

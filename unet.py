@@ -152,8 +152,8 @@ class Unet(torch.nn.Module):
         return [os.path.join(path, f) for f in sorted(
             [f for f in os.listdir(path) if f.startswith(self.name) and f.endswith(suffix)],
             key=lambda file: int(file.split('_')[1]), reverse=True)]
-    def train(self):
-        super().train()
+    def train(self,mode=True):
+        super().train(mode)
         if self.freeze_batch:
             for name,module in self.named_modules():
                 if name in map(lambda s:'pconv'+str(s),range(1,9)):
