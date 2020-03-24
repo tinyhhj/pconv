@@ -259,7 +259,7 @@ def inference(image,mask):
     # 0 for hole 1 for valid
     mask = torch.where(mask>0, torch.tensor(0),torch.tensor(1))
     mask = torch.cat([mask,mask,mask]).float()
-    out_img, _ = model(image.unsqueeze(0),mask.unsqueeze(0))
+    out_img, _ = model(norm_img(image.unsqueeze(0)),mask.unsqueeze(0))
     result = out_img.squeeze(0) * (1-mask) + mask * image
 
     # save result

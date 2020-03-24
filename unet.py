@@ -163,8 +163,12 @@ class Unet(torch.nn.Module):
 
 if __name__ =='__main__':
     model = Unet(3,64)
-    print('weight init')
-    print(model.pconv1.weight)
+    imgs = torch.randn(2,3,256,256)
+    masks = torch.randn(2,3,256,256)
+    from torch.utils.tensorboard import SummaryWriter
+    writer = SummaryWriter('logs/pconv')
+    writer.add_graph(model,[imgs,masks])
+    writer.close()
     img = torch.randn(1,3,512,512)
     mask  =torch.randn(1,1,512,512)
     mask = torch.cat([mask,mask,mask],dim=1)
