@@ -151,7 +151,7 @@ def validate(model,criterion, val_loader,maskloader,cur_iter):
                 masks = next(maskiter)
             images, masks = images.to(device), masks.to(device, dtype=torch.float)
             out_img,_ = model(images,masks)
-            norm_out_img = torchvision.transforms.Normalize(mean,std)(out_img)
+            norm_out_img = norm_img(out_img)
             total_loss = criterion(images, masks, norm_out_img)
 
             total_loss_avg.update(total_loss.item())
@@ -219,8 +219,10 @@ def train(model, criterion, dataloader, maskloader,val_loader):
             images,masks = images.to(device), masks.to(device,dtype=torch.float)
 
             out_img, _ = model(images,masks)
+
+            norm_out_img = norm_img(out_img)
             # gt, in_mask, out_img
-            total_loss = criterion(images, masks,out_img)
+            total_loss = criterion(images, masks,norm_out_img)
             total_loss_avg.update(total_loss.item())
             record_losses(criterion,loss_valid_avg,loss_hole_avg,loss_perceptual_avg,loss_style_avg,loss_total_variation_avg)
             total_loss.backward()
@@ -267,7 +269,8 @@ def inference(image,mask):
     result_img.save(savepoint)
     return result_img
 
-
+def norm_img(images):
+    return torch.stack(tuple(map(torchvision.transforms.Normalize(mean, std),images)))
 
 
 if __name__ == '__main__':
