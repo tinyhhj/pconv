@@ -59,11 +59,11 @@ class Unet(torch.nn.Module):
         def init_func(m):
             gain = 0.02
             classname = m.__class__.__name__
-            if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
-                torch.nn.init.normal_(m.weight.data, 0.0, gain)
-                    # nn.init.xavier_normal_(m.weight.data, gain=gain)
-                    # nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
-                    # nn.init.orthogonal_(m.weight.data, gain=gain)
+            if hasattr(m, 'weight') and (classname.find('conv') != -1 or classname.find('Linear') != -1):
+                # torch.nn.init.normal_(m.weight.data, 0.0, gain)
+                # nn.init.xavier_normal_(m.weight.data, gain=gain)
+                torch.nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+                # nn.init.orthogonal_(m.weight.data, gain=gain)
 
                 if hasattr(m, 'bias') and m.bias is not None:
                     torch.nn.init.constant_(m.bias.data, 0.0)
@@ -163,6 +163,8 @@ class Unet(torch.nn.Module):
 
 if __name__ =='__main__':
     model = Unet(3,64)
+    print('weight init')
+    print(model.pconv1.weight)
     img = torch.randn(1,3,512,512)
     mask  =torch.randn(1,1,512,512)
     mask = torch.cat([mask,mask,mask],dim=1)
